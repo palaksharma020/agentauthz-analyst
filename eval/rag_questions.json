@@ -1,0 +1,192 @@
+[
+ {
+  "id": "R1",
+  "title": "Is invoice-bot-07 allowed to read orders? (agent was revoked after an incident)",
+  "question": "Agent invoice-bot-07 wants to read orders. Is this agent still allowed to act?",
+  "event": "{\"event_type\":\"agent_tool_call\",\"user\":{\"id\":\"u-2210\",\"roles\":[\"finance_analyst\"],\"mfa_age_min\":30},\"agent\":{\"id\":\"invoice-bot-07\",\"registered\":true,\"state\":\"active\",\"owner\":\"u-2210\",\"type\":\"interactive\"},\"token\":{\"grant_type\":\"urn:ietf:params:oauth:grant-type:token-exchange\",\"sub\":\"u-2210\",\"act\":{\"sub\":\"invoice-bot-07\"},\"aud\":\"https://mcp.erp.example/\",\"scopes\":[\"orders:read\"],\"age_min\":5,\"jti_seen_before\":false},\"delegated_scopes\":[\"orders:read\",\"reports:read\"],\"tool_call\":{\"mcp_server\":\"erp-mcp\",\"tool\":\"orders.read\",\"target_resource\":\"https://mcp.erp.example/\",\"reversible\":true,\"data_sensitivity\":\"internal\",\"records\":5},\"human_approval\":\"none\",\"context\":{\"hour_local\":10,\"runtime_geo\":\"US\",\"usual_geo\":\"US\",\"delegation_depth\":1}}",
+  "chat_input": "Agent invoice-bot-07 wants to read orders. Is this agent still allowed to act?\nEVENT: {\"event_type\":\"agent_tool_call\",\"user\":{\"id\":\"u-2210\",\"roles\":[\"finance_analyst\"],\"mfa_age_min\":30},\"agent\":{\"id\":\"invoice-bot-07\",\"registered\":true,\"state\":\"active\",\"owner\":\"u-2210\",\"type\":\"interactive\"},\"token\":{\"grant_type\":\"urn:ietf:params:oauth:grant-type:token-exchange\",\"sub\":\"u-2210\",\"act\":{\"sub\":\"invoice-bot-07\"},\"aud\":\"https://mcp.erp.example/\",\"scopes\":[\"orders:read\"],\"age_min\":5,\"jti_seen_before\":false},\"delegated_scopes\":[\"orders:read\",\"reports:read\"],\"tool_call\":{\"mcp_server\":\"erp-mcp\",\"tool\":\"orders.read\",\"target_resource\":\"https://mcp.erp.example/\",\"reversible\":true,\"data_sensitivity\":\"internal\",\"records\":5},\"human_approval\":\"none\",\"context\":{\"hour_local\":10,\"runtime_geo\":\"US\",\"usual_geo\":\"US\",\"delegation_depth\":1}}",
+  "expected_without_context": {
+   "checks": {
+    "agent_registered": true,
+    "agent_status": "active",
+    "act_claim": "ok",
+    "audience": "ok",
+    "scopes_within_delegation": true,
+    "user_entitled": true,
+    "token_replay": false,
+    "token_age_ok": true,
+    "chain_depth_ok": true,
+    "irreversible_unapproved": false,
+    "bulk_sensitive": false,
+    "geo": "usual",
+    "hour_ok": true,
+    "mfa_fresh": true
+   },
+   "decision": "ALLOW",
+   "risk": 5,
+   "reasons": [
+    "registered active agent, valid delegated token, scopes within delegation, reversible low-risk action"
+   ],
+   "controls": [
+    "RFC 8693 token exchange (act claim / delegation)",
+    "Least privilege: agent scopes <= delegated <= user entitlements"
+   ]
+  },
+  "expected_with_acme_policy": {
+   "checks": {
+    "agent_registered": true,
+    "agent_status": "revoked_in_registry",
+    "act_claim": "ok",
+    "audience": "ok",
+    "scopes_within_delegation": true,
+    "user_entitled": true,
+    "token_replay": false,
+    "token_age_ok": true,
+    "chain_depth_ok": true,
+    "irreversible_unapproved": false,
+    "bulk_sensitive": false,
+    "geo": "usual",
+    "hour_ok": true,
+    "mfa_fresh": true
+   },
+   "decision": "DENY",
+   "risk": 82,
+   "reasons": [
+    "agent 'invoice-bot-07' is listed as revoked in acme_agent_registry.md although the token says state=active (stale cache)"
+   ],
+   "controls": [
+    "Agent lifecycle: registration and revocation"
+   ],
+   "sources": [
+    "acme_agent_registry.md"
+   ]
+  }
+ },
+ {
+  "id": "R2",
+  "title": "cust-support-03 looks up 80 customer PII records",
+  "question": "Agent cust-support-03 is looking up 80 customer PII records in one call. Is that within our bulk data policy?",
+  "event": "{\"event_type\":\"agent_tool_call\",\"user\":{\"id\":\"u-5531\",\"roles\":[\"warehouse_manager\"],\"mfa_age_min\":30},\"agent\":{\"id\":\"cust-support-03\",\"registered\":true,\"state\":\"active\",\"owner\":\"u-5531\",\"type\":\"interactive\"},\"token\":{\"grant_type\":\"urn:ietf:params:oauth:grant-type:token-exchange\",\"sub\":\"u-5531\",\"act\":{\"sub\":\"cust-support-03\"},\"aud\":\"https://mcp.crm.example/\",\"scopes\":[\"customers:read\"],\"age_min\":5,\"jti_seen_before\":false},\"delegated_scopes\":[\"customers:read\",\"email:send\"],\"tool_call\":{\"mcp_server\":\"crm-mcp\",\"tool\":\"customer.lookup\",\"target_resource\":\"https://mcp.crm.example/\",\"reversible\":true,\"data_sensitivity\":\"pii\",\"records\":80},\"human_approval\":\"none\",\"context\":{\"hour_local\":10,\"runtime_geo\":\"US\",\"usual_geo\":\"US\",\"delegation_depth\":1}}",
+  "chat_input": "Agent cust-support-03 is looking up 80 customer PII records in one call. Is that within our bulk data policy?\nEVENT: {\"event_type\":\"agent_tool_call\",\"user\":{\"id\":\"u-5531\",\"roles\":[\"warehouse_manager\"],\"mfa_age_min\":30},\"agent\":{\"id\":\"cust-support-03\",\"registered\":true,\"state\":\"active\",\"owner\":\"u-5531\",\"type\":\"interactive\"},\"token\":{\"grant_type\":\"urn:ietf:params:oauth:grant-type:token-exchange\",\"sub\":\"u-5531\",\"act\":{\"sub\":\"cust-support-03\"},\"aud\":\"https://mcp.crm.example/\",\"scopes\":[\"customers:read\"],\"age_min\":5,\"jti_seen_before\":false},\"delegated_scopes\":[\"customers:read\",\"email:send\"],\"tool_call\":{\"mcp_server\":\"crm-mcp\",\"tool\":\"customer.lookup\",\"target_resource\":\"https://mcp.crm.example/\",\"reversible\":true,\"data_sensitivity\":\"pii\",\"records\":80},\"human_approval\":\"none\",\"context\":{\"hour_local\":10,\"runtime_geo\":\"US\",\"usual_geo\":\"US\",\"delegation_depth\":1}}",
+  "expected_without_context": {
+   "checks": {
+    "agent_registered": true,
+    "agent_status": "active",
+    "act_claim": "ok",
+    "audience": "ok",
+    "scopes_within_delegation": true,
+    "user_entitled": true,
+    "token_replay": false,
+    "token_age_ok": true,
+    "chain_depth_ok": true,
+    "irreversible_unapproved": false,
+    "bulk_sensitive": false,
+    "geo": "usual",
+    "hour_ok": true,
+    "mfa_fresh": true
+   },
+   "decision": "ALLOW",
+   "risk": 10,
+   "reasons": [
+    "registered active agent, valid delegated token, scopes within delegation, reversible low-risk action"
+   ],
+   "controls": [
+    "RFC 8693 token exchange (act claim / delegation)",
+    "Least privilege: agent scopes <= delegated <= user entitlements"
+   ]
+  },
+  "expected_with_acme_policy": {
+   "checks": {
+    "agent_registered": true,
+    "agent_status": "active",
+    "act_claim": "ok",
+    "audience": "ok",
+    "scopes_within_delegation": true,
+    "user_entitled": true,
+    "token_replay": false,
+    "token_age_ok": true,
+    "chain_depth_ok": true,
+    "irreversible_unapproved": false,
+    "bulk_sensitive": true,
+    "geo": "usual",
+    "hour_ok": true,
+    "mfa_fresh": true
+   },
+   "decision": "STEP_UP",
+   "risk": 42,
+   "reasons": [
+    "80 pii records exceeds the 50-record agent limit in acme_agent_authorization_policy.md"
+   ],
+   "controls": [
+    "Data sensitivity: bulk PII / financial export controls"
+   ],
+   "sources": [
+    "acme_agent_authorization_policy.md"
+   ]
+  }
+ },
+ {
+  "id": "R3",
+  "title": "ship-planner-05 runs from Germany instead of its usual US region",
+  "question": "Agent ship-planner-05 is running from region DE instead of its usual US. Is that runtime location approved?",
+  "event": "{\"event_type\":\"agent_tool_call\",\"user\":{\"id\":\"u-6181\",\"roles\":[\"warehouse_manager\"],\"mfa_age_min\":30},\"agent\":{\"id\":\"ship-planner-05\",\"registered\":true,\"state\":\"active\",\"owner\":\"u-6181\",\"type\":\"interactive\"},\"token\":{\"grant_type\":\"urn:ietf:params:oauth:grant-type:token-exchange\",\"sub\":\"u-6181\",\"act\":{\"sub\":\"ship-planner-05\"},\"aud\":\"https://mcp.erp.example/\",\"scopes\":[\"shipments:write\"],\"age_min\":5,\"jti_seen_before\":false},\"delegated_scopes\":[\"orders:read\",\"shipments:write\"],\"tool_call\":{\"mcp_server\":\"erp-mcp\",\"tool\":\"shipment.update_eta\",\"target_resource\":\"https://mcp.erp.example/\",\"reversible\":true,\"data_sensitivity\":\"internal\",\"records\":3},\"human_approval\":\"none\",\"context\":{\"hour_local\":10,\"runtime_geo\":\"DE\",\"usual_geo\":\"US\",\"delegation_depth\":1}}",
+  "chat_input": "Agent ship-planner-05 is running from region DE instead of its usual US. Is that runtime location approved?\nEVENT: {\"event_type\":\"agent_tool_call\",\"user\":{\"id\":\"u-6181\",\"roles\":[\"warehouse_manager\"],\"mfa_age_min\":30},\"agent\":{\"id\":\"ship-planner-05\",\"registered\":true,\"state\":\"active\",\"owner\":\"u-6181\",\"type\":\"interactive\"},\"token\":{\"grant_type\":\"urn:ietf:params:oauth:grant-type:token-exchange\",\"sub\":\"u-6181\",\"act\":{\"sub\":\"ship-planner-05\"},\"aud\":\"https://mcp.erp.example/\",\"scopes\":[\"shipments:write\"],\"age_min\":5,\"jti_seen_before\":false},\"delegated_scopes\":[\"orders:read\",\"shipments:write\"],\"tool_call\":{\"mcp_server\":\"erp-mcp\",\"tool\":\"shipment.update_eta\",\"target_resource\":\"https://mcp.erp.example/\",\"reversible\":true,\"data_sensitivity\":\"internal\",\"records\":3},\"human_approval\":\"none\",\"context\":{\"hour_local\":10,\"runtime_geo\":\"DE\",\"usual_geo\":\"US\",\"delegation_depth\":1}}",
+  "expected_without_context": {
+   "checks": {
+    "agent_registered": true,
+    "agent_status": "active",
+    "act_claim": "ok",
+    "audience": "ok",
+    "scopes_within_delegation": true,
+    "user_entitled": true,
+    "token_replay": false,
+    "token_age_ok": true,
+    "chain_depth_ok": true,
+    "irreversible_unapproved": false,
+    "bulk_sensitive": false,
+    "geo": "anomalous",
+    "hour_ok": true,
+    "mfa_fresh": true
+   },
+   "decision": "STEP_UP",
+   "risk": 40,
+   "reasons": [
+    "agent runtime geo DE differs from usual US"
+   ],
+   "controls": [
+    "Contextual risk: geo / time anomaly"
+   ]
+  },
+  "expected_with_acme_policy": {
+   "checks": {
+    "agent_registered": true,
+    "agent_status": "active",
+    "act_claim": "ok",
+    "audience": "ok",
+    "scopes_within_delegation": true,
+    "user_entitled": true,
+    "token_replay": false,
+    "token_age_ok": true,
+    "chain_depth_ok": true,
+    "irreversible_unapproved": false,
+    "bulk_sensitive": false,
+    "geo": "approved_region",
+    "hour_ok": true,
+    "mfa_fresh": true
+   },
+   "decision": "ALLOW",
+   "risk": 5,
+   "reasons": [
+    "runtime geo DE is an approved agent region in acme_agent_authorization_policy.md",
+    "registered active agent, valid delegated token, scopes within delegation, reversible low-risk action"
+   ],
+   "controls": [
+    "RFC 8693 token exchange (act claim / delegation)",
+    "Least privilege: agent scopes <= delegated <= user entitlements"
+   ],
+   "sources": [
+    "acme_agent_authorization_policy.md"
+   ]
+  }
+ }
+]

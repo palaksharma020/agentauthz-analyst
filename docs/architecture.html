@@ -1,0 +1,367 @@
+<title>AgentAuthZ Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column of figures, each a hand-drawn SVG that scrolls on its own when the screen is narrow. */
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --fg: #18202d;
+  --muted: #586174;
+  --line: #c3cad5;
+  --faint: #e3e7ee;
+  --accent: #2146c0;
+  --accent-soft: #e5eafb;
+  --allow: #1d7748;
+  --step: #a1610a;
+  --deny: #b3292b;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10141b; --surface: #171d27; --fg: #e3e8f0; --muted: #9aa4b5; --line: #3a4455; --faint: #222a37;
+    --accent: #87a2ff; --accent-soft: #1c2645; --allow: #4fc48d; --step: #e2a647; --deny: #f27777;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10141b; --surface: #171d27; --fg: #e3e8f0; --muted: #9aa4b5; --line: #3a4455; --faint: #222a37;
+  --accent: #87a2ff; --accent-soft: #1c2645; --allow: #4fc48d; --step: #e2a647; --deny: #f27777;
+  color-scheme: dark;
+}
+
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+.page { max-width: 1160px; margin: 0 auto; padding-inline: 20px; padding-block: 36px 64px; display: grid; gap: 44px; }
+header { display: grid; gap: 10px; max-width: 70ch; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-size: clamp(26px, 4vw, 36px); line-height: 1.15; margin: 0; font-weight: 700; text-wrap: balance; }
+h2 { font-size: 20px; margin: 0; font-weight: 600; text-wrap: balance; }
+p { margin: 0; }
+.lede { color: var(--muted); font-size: 16px; }
+code { font-family: var(--font-mono); font-size: 13px; background: var(--faint); padding: 1px 5px; border-radius: 4px; }
+
+section { display: grid; gap: 14px; }
+section > p { max-width: 75ch; color: var(--muted); }
+figure { margin: 0; display: grid; gap: 10px; }
+.canvas { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; overflow-x: auto; }
+.canvas svg { display: block; width: 100%; min-width: 860px; height: auto; color: var(--muted); }
+.canvas.small svg { min-width: 520px; }
+figcaption { font-size: 13.5px; color: var(--muted); max-width: 80ch; }
+
+/* SVG vocabulary, all from tokens so both themes work */
+svg text { font-family: var(--font-body); fill: var(--fg); }
+svg .t { font-size: 14px; font-weight: 600; }
+svg .s { font-size: 12px; fill: var(--muted); }
+svg .m { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); }
+svg .lbl { font-size: 11.5px; fill: var(--muted); }
+svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.3; }
+svg .box.proposed { stroke-dasharray: 5 4; fill: var(--bg); }
+svg .box.model { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.8; }
+svg .box.ctx { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.3; stroke-dasharray: 2 0; }
+svg .edge { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+svg .edge.acc { stroke: var(--accent); stroke-width: 1.8; }
+svg .edge.dash { stroke-dasharray: 5 4; }
+svg .head { fill: var(--muted); }
+svg .head.acc { fill: var(--accent); }
+svg .allow { stroke: var(--allow); } svg .step { stroke: var(--step); } svg .deny { stroke: var(--deny); }
+svg text.allow-t { fill: var(--allow); font-weight: 700; font-size: 13px; }
+svg text.step-t { fill: var(--step); font-weight: 700; font-size: 13px; }
+svg text.deny-t { fill: var(--deny); font-weight: 700; font-size: 13px; }
+svg .grid { stroke: var(--faint); stroke-width: 1; }
+svg .bar { fill: var(--line); }
+svg .bar.best { fill: var(--accent); }
+svg .acc-t { fill: var(--accent); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.sw { width: 22px; height: 14px; border-radius: 3px; border: 1.4px solid var(--line); background: var(--surface); }
+.sw.proposed { border-style: dashed; background: var(--bg); }
+.sw.model { border-color: var(--accent); background: var(--accent-soft); }
+
+.results { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 18px; }
+.rag-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 12px; align-content: start; }
+.rag-stat .row { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--faint); padding-block: 6px; font-variant-numeric: tabular-nums; }
+.rag-stat .row:last-child { border-bottom: 0; }
+.rag-stat strong { font-family: var(--font-mono); font-weight: 500; }
+.rag-stat .good { color: var(--allow); }
+.rag-stat .bad { color: var(--deny); }
+
+ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 12px; max-width: 80ch; }
+ol.steps li { padding-left: 4px; }
+ol.steps .what { font-weight: 600; }
+ol.steps .say { color: var(--muted); }
+pre.cmd { margin: 6px 0 0; font-family: var(--font-mono); font-size: 12.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; overflow-x: auto; white-space: pre; }
+
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+
+@media (max-width: 760px) {
+  .results { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">Identity &amp; access for AI agents</div>
+    <h1>AgentAuthZ: a small model that authorizes what AI agents do</h1>
+    <p class="lede">Every time an agent calls a tool on a user's behalf, AgentAuthZ decides <b>ALLOW</b>, <b>STEP_UP</b> or <b>DENY</b>, shows the checks behind the decision, and cites the policy it used. It is a fine-tuned Llama-3.2-3B served locally by Ollama, grounded in org policy with RAG, and backed by a deterministic guard.</p>
+  </header>
+
+  <section>
+    <h2>1. One tool call, end to end</h2>
+    <p>Follow a single agent request from left to right. The fine-tuned model reads the event, the vector store supplies current policy, and the guard enforces a floor before anything runs.</p>
+    <figure>
+      <div class="canvas">
+        <svg viewBox="0 0 1120 420" role="img" aria-label="Runtime flow: an AI agent's tool call and token go through a gateway, which sends the event to the AgentAuthZ model. The model retrieves policy context from a Chroma vector store built from the policy corpus, returns checks and a decision, and an escalate-only guard routes the call to allow, step-up or deny.">
+          <defs>
+            <marker id="h1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="h1a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head acc" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+
+          <!-- Agent -->
+          <rect class="box" x="20" y="110" width="140" height="80" rx="6"/>
+          <text class="t" x="90" y="143" text-anchor="middle">AI agent</text>
+          <text class="s" x="90" y="162" text-anchor="middle">acts for a user</text>
+          <text class="m" x="90" y="178" text-anchor="middle">invoice-bot-07</text>
+
+          <line class="edge" x1="160" y1="150" x2="226" y2="150" marker-end="url(#h1)"/>
+          <text class="lbl" x="195" y="129" text-anchor="middle">tool call</text>
+          <text class="lbl" x="195" y="143" text-anchor="middle">+ token</text>
+
+          <!-- Gateway (proposed) -->
+          <rect class="box proposed" x="230" y="110" width="160" height="80" rx="6"/>
+          <text class="t" x="310" y="143" text-anchor="middle">Agent gateway</text>
+          <text class="s" x="310" y="162" text-anchor="middle">tool-call interceptor</text>
+          <text class="m" x="310" y="178" text-anchor="middle">production step</text>
+
+          <line class="edge" x1="390" y1="150" x2="456" y2="150" marker-end="url(#h1)"/>
+          <text class="lbl" x="425" y="129" text-anchor="middle">event</text>
+          <text class="lbl" x="425" y="143" text-anchor="middle">JSON</text>
+
+          <!-- Model -->
+          <rect class="box model" x="460" y="104" width="200" height="92" rx="6"/>
+          <text class="t acc-t" x="560" y="133" text-anchor="middle">AgentAuthZ model</text>
+          <text class="s" x="560" y="152" text-anchor="middle">Llama-3.2-3B + LoRA</text>
+          <text class="m" x="560" y="169" text-anchor="middle">Ollama · q4_k_m · 2 GB</text>
+          <text class="m" x="560" y="184" text-anchor="middle">writes checks, then decision</text>
+
+          <line class="edge acc" x1="660" y1="150" x2="736" y2="150" marker-end="url(#h1a)"/>
+          <text class="lbl" x="698" y="129" text-anchor="middle">checks +</text>
+          <text class="lbl" x="698" y="143" text-anchor="middle">decision</text>
+
+          <!-- Guard -->
+          <rect class="box" x="740" y="110" width="150" height="80" rx="6"/>
+          <text class="t" x="815" y="140" text-anchor="middle">Guard</text>
+          <text class="s" x="815" y="158" text-anchor="middle">escalate-only floor</text>
+          <text class="m" x="815" y="176" text-anchor="middle">act missing ⇒ DENY</text>
+
+          <!-- Outcomes -->
+          <path class="edge allow" d="M890,150 C920,150 920,92 946,92" marker-end="url(#h1)"/>
+          <line class="edge step" x1="890" y1="150" x2="946" y2="150" marker-end="url(#h1)"/>
+          <path class="edge deny" d="M890,150 C920,150 920,208 946,208" marker-end="url(#h1)"/>
+
+          <rect class="box" x="950" y="70" width="160" height="44" rx="5" style="stroke: var(--allow)"/>
+          <text class="allow-t" x="964" y="89">ALLOW</text>
+          <text class="s" x="964" y="105">run the MCP tool</text>
+          <rect class="box" x="950" y="128" width="160" height="44" rx="5" style="stroke: var(--step)"/>
+          <text class="step-t" x="964" y="147">STEP_UP</text>
+          <text class="s" x="964" y="163">human approval / MFA</text>
+          <rect class="box" x="950" y="186" width="160" height="44" rx="5" style="stroke: var(--deny)"/>
+          <text class="deny-t" x="964" y="205">DENY</text>
+          <text class="s" x="964" y="221">block and audit</text>
+
+          <!-- Retrieval -->
+          <line class="edge" x1="530" y1="196" x2="530" y2="286" marker-end="url(#h1)"/>
+          <text class="lbl" x="522" y="236" text-anchor="end">search with</text>
+          <text class="lbl" x="522" y="250" text-anchor="end">question + event</text>
+          <line class="edge acc" x1="595" y1="288" x2="595" y2="200" marker-end="url(#h1a)"/>
+          <text class="lbl" x="604" y="236">CONTEXT, top 4 chunks</text>
+          <text class="m" x="604" y="251">[source: file.md] …</text>
+
+          <rect class="box" x="460" y="290" width="200" height="76" rx="6"/>
+          <text class="t" x="560" y="318" text-anchor="middle">Chroma vector store</text>
+          <text class="s" x="560" y="337" text-anchor="middle">nomic-embed-text</text>
+          <text class="m" x="560" y="354" text-anchor="middle">LangFlow or rag_pipeline.py</text>
+
+          <line class="edge" x1="390" y1="328" x2="456" y2="328" marker-end="url(#h1)"/>
+          <text class="lbl" x="423" y="318" text-anchor="middle">embed</text>
+
+          <rect class="box" x="150" y="290" width="240" height="76" rx="6"/>
+          <text class="t" x="270" y="318" text-anchor="middle">Policy corpus, 8 docs</text>
+          <text class="s" x="270" y="337" text-anchor="middle">Acme policy · agent registry</text>
+          <text class="m" x="270" y="354" text-anchor="middle">RFC 8693 · MCP · OWASP · NIST</text>
+          <text class="lbl" x="270" y="392" text-anchor="middle">facts that change: revocations, limits, regions, approvers</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="sw"></i>built and measured in this project</span>
+        <span><i class="sw proposed"></i>production component, not built yet</span>
+        <span><i class="sw model"></i>fine-tuned model and what it reads</span>
+      </div>
+      <figcaption>Parametric knowledge (how to judge a delegated token) lives in the model's weights. Contextual knowledge (who is revoked today, Acme's 50-record PII limit) is retrieved per call and cited by file name. The guard turns the model's own failing checks into a minimum decision, so a failed check can never end in ALLOW.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>2. How the model was built</h2>
+    <p>Rule-labeled events teach the model a decision procedure. The labels come from a transparent rule engine, so every training target is reproducible.</p>
+    <figure>
+      <div class="canvas">
+        <svg viewBox="0 0 1120 200" role="img" aria-label="Training pipeline: 450 real-world-derived logins from the RBA dataset and 960 synthetic agent events are labeled by a rule engine, written as 1,269 training and 141 held-out examples, fine-tuned with Unsloth LoRA on a Colab T4, and exported as a 4-bit GGUF served by Ollama.">
+          <defs>
+            <marker id="h2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+          <rect class="box" x="20" y="18" width="200" height="68" rx="6"/>
+          <text class="t" x="34" y="43">RBA login dataset</text>
+          <text class="s" x="34" y="61">450 logins from 33M attempts</text>
+          <text class="m" x="34" y="77">real-world-derived, CC BY 4.0</text>
+
+          <rect class="box" x="20" y="114" width="200" height="68" rx="6"/>
+          <text class="t" x="34" y="139">Agent event generator</text>
+          <text class="s" x="34" y="157">960 tool calls, 15 fault types</text>
+          <text class="m" x="34" y="173">210 include policy CONTEXT</text>
+
+          <path class="edge" d="M220,52 C250,52 250,86 276,86" marker-end="url(#h2)"/>
+          <path class="edge" d="M220,148 C250,148 250,114 276,114" marker-end="url(#h2)"/>
+
+          <rect class="box" x="280" y="58" width="170" height="84" rx="6"/>
+          <text class="t" x="365" y="88" text-anchor="middle">Rule engine</text>
+          <text class="s" x="365" y="107" text-anchor="middle">checks → decision</text>
+          <text class="s" x="365" y="124" text-anchor="middle">→ reasons, controls</text>
+
+          <line class="edge" x1="450" y1="100" x2="506" y2="100" marker-end="url(#h2)"/>
+          <text class="lbl" x="478" y="90" text-anchor="middle">labels</text>
+
+          <rect class="box" x="510" y="58" width="150" height="84" rx="6"/>
+          <text class="t" x="585" y="88" text-anchor="middle">Chat JSONL</text>
+          <text class="s" x="585" y="107" text-anchor="middle">1,269 train</text>
+          <text class="s" x="585" y="124" text-anchor="middle">141 held out</text>
+
+          <line class="edge" x1="660" y1="100" x2="716" y2="100" marker-end="url(#h2)"/>
+          <text class="lbl" x="688" y="90" text-anchor="middle">train</text>
+
+          <rect class="box model" x="720" y="58" width="180" height="84" rx="6"/>
+          <text class="t acc-t" x="810" y="86" text-anchor="middle">Unsloth LoRA r=16</text>
+          <text class="s" x="810" y="105" text-anchor="middle">Llama-3.2-3B · Colab T4</text>
+          <text class="m" x="810" y="123" text-anchor="middle">loss 2.10 → 0.003, 49 min</text>
+
+          <line class="edge" x1="900" y1="100" x2="946" y2="100" marker-end="url(#h2)"/>
+          <text class="lbl" x="923" y="90" text-anchor="middle">GGUF</text>
+
+          <rect class="box" x="950" y="58" width="160" height="84" rx="6"/>
+          <text class="t" x="1030" y="86" text-anchor="middle">Ollama</text>
+          <text class="s" x="1030" y="105" text-anchor="middle">agentauthz, q4_k_m</text>
+          <text class="m" x="1030" y="123" text-anchor="middle">runs on an 8 GB M1</text>
+        </svg>
+      </div>
+      <figcaption>Login labels use only signals visible at login time. The dataset's account-takeover flag measures the rules instead of labeling them: the rule baseline catches 103 of 140 real takeovers. The 210 context examples use randomized policy values, so the model learns to read and cite policy rather than memorize it.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>3. What RAG changes: the revoked-agent case</h2>
+    <p>Same event, same model. The only difference is one retrieved chunk from the agent registry.</p>
+    <figure>
+      <div class="canvas">
+        <svg viewBox="0 0 1120 230" role="img" aria-label="R1 example: without retrieval the fine-tuned model sees a token that says the agent is active and answers ALLOW, which is wrong. With retrieval, a registry chunk listing invoice-bot-07 as revoked is added and the model answers DENY, citing acme_agent_registry.md.">
+          <defs>
+            <marker id="h3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="h3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head acc" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+          <line class="grid" x1="20" y1="115" x2="1100" y2="115"/>
+          <text class="t" x="20" y="56">Fine-tuned only</text>
+          <text class="t acc-t" x="20" y="170">Fine-tuned + RAG</text>
+
+          <!-- Lane A -->
+          <rect class="box" x="180" y="28" width="200" height="60" rx="6"/>
+          <text class="t" x="196" y="53">R1 event</text>
+          <text class="m" x="196" y="72">invoice-bot-07, state: active</text>
+          <line class="edge" x1="380" y1="58" x2="686" y2="58" marker-end="url(#h3)"/>
+          <text class="lbl" x="533" y="49" text-anchor="middle">event only, no policy</text>
+          <rect class="box model" x="690" y="28" width="150" height="60" rx="6"/>
+          <text class="t acc-t" x="765" y="63" text-anchor="middle">AgentAuthZ</text>
+          <line class="edge" x1="840" y1="58" x2="876" y2="58" marker-end="url(#h3)"/>
+          <rect class="box" x="880" y="28" width="220" height="60" rx="6" style="stroke: var(--deny)"/>
+          <text class="allow-t" x="896" y="52">ALLOW  ✗ wrong</text>
+          <text class="s" x="896" y="72">trusts the token's stale state</text>
+
+          <!-- Lane B -->
+          <rect class="box" x="180" y="140" width="200" height="60" rx="6"/>
+          <text class="t" x="196" y="165">R1 event</text>
+          <text class="m" x="196" y="184">invoice-bot-07, state: active</text>
+          <line class="edge" x1="380" y1="170" x2="416" y2="170" marker-end="url(#h3)"/>
+          <rect class="box ctx" x="420" y="140" width="230" height="60" rx="6"/>
+          <text class="m" x="434" y="162">[source: acme_agent_registry.md]</text>
+          <text class="t" x="434" y="184" style="font-size: 13px">REVOKED: invoice-bot-07</text>
+          <line class="edge acc" x1="650" y1="170" x2="686" y2="170" marker-end="url(#h3a)"/>
+          <rect class="box model" x="690" y="140" width="150" height="60" rx="6"/>
+          <text class="t acc-t" x="765" y="175" text-anchor="middle">AgentAuthZ</text>
+          <line class="edge" x1="840" y1="170" x2="876" y2="170" marker-end="url(#h3)"/>
+          <rect class="box" x="880" y="140" width="220" height="60" rx="6" style="stroke: var(--allow)"/>
+          <text class="deny-t" x="896" y="164">DENY  ✓ correct</text>
+          <text class="m" x="896" y="184">cites acme_agent_registry.md</text>
+        </svg>
+      </div>
+      <figcaption>The model's weights cannot know that an agent was revoked on 2026-09-28. Retrieval supplies that fact at query time, the decision flips, and the answer names its source. Without retrieval the model also invents policy: asked about the PII limit, it claimed a "10-record" rule; Acme's real limit is 50.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>4. Results</h2>
+    <div class="results">
+      <figure>
+        <div class="canvas small">
+          <svg viewBox="0 0 600 200" role="img" aria-label="Held-out accuracy on 141 events: base model 33 percent, fine-tuned v1 55 percent, fine-tuned v2 96 percent, v2 with guard 99 percent.">
+            <line class="grid" x1="170" y1="10" x2="170" y2="170"/>
+            <line class="grid" x1="360" y1="10" x2="360" y2="170"/>
+            <line class="grid" x1="550" y1="10" x2="550" y2="170"/>
+            <text class="m" x="170" y="190" text-anchor="middle">0%</text>
+            <text class="m" x="360" y="190" text-anchor="middle">50%</text>
+            <text class="m" x="550" y="190" text-anchor="middle">100%</text>
+
+            <text class="s" x="160" y="33" text-anchor="end">Base llama3.2:3b</text>
+            <rect class="bar" x="170" y="16" width="125.4" height="26" rx="3"/>
+            <text class="m" x="303" y="33">33%</text>
+
+            <text class="s" x="160" y="73" text-anchor="end">Fine-tuned v1</text>
+            <rect class="bar" x="170" y="56" width="209" height="26" rx="3"/>
+            <text class="m" x="387" y="73">55%</text>
+
+            <text class="s" x="160" y="113" text-anchor="end">Fine-tuned v2</text>
+            <rect class="bar best" x="170" y="96" width="364.8" height="26" rx="3"/>
+            <text class="m" x="542" y="113">96%</text>
+
+            <text class="s" x="160" y="153" text-anchor="end">v2 + guard</text>
+            <rect class="bar best" x="170" y="136" width="376.2" height="26" rx="3"/>
+            <text class="m" x="554" y="153">99%</text>
+          </svg>
+        </div>
+        <figcaption>Decision accuracy on 141 held-out events the models never saw. v2 writes its checks before the decision and was trained on 2.5× more agent data.</figcaption>
+      </figure>
+      <div class="rag-stat">
+        <h2 style="font-size: 16px">Policy questions R1–R3</h2>
+        <div class="row"><span>Base model</span><strong class="bad">0 / 3</strong></div>
+        <div class="row"><span>Fine-tuned, no retrieval</span><strong class="bad">0 / 3</strong></div>
+        <div class="row"><span>Fine-tuned + RAG</span><strong class="good">3 / 3, sources cited</strong></div>
+        <div class="row"><span>Logins (held out)</span><strong>45 / 45</strong></div>
+        <div class="row"><span>Speed on M1, per event</span><strong>6.9 s</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>5. Walkthrough</h2>
+    <ol class="steps">
+      <li><span class="what">Show the gap.</span> <span class="say">Ask the base model about Q2: an agent releasing a payment with no <code>act</code> claim and an escalated scope. It answers ALLOW.</span>
+        <pre class="cmd">ollama run llama3.2:3b</pre></li>
+      <li><span class="what">Show the fine-tuned analyst.</span> <span class="say">Same event. The checks flag <code>act_claim: "missing"</code>. The 4-bit model's raw answer is STEP_UP, and the guard in <code>rag_pipeline.py</code> escalates it to DENY.</span>
+        <pre class="cmd">ollama run agentauthz</pre></li>
+      <li><span class="what">Show RAG.</span> <span class="say">In the LangFlow Playground, paste R1 from <code>eval/questions.md</code>. The answer is DENY and cites <code>acme_agent_registry.md</code>.</span></li>
+      <li><span class="what">Show the numbers.</span>
+        <pre class="cmd">python3 eval/run_compare.py --report</pre></li>
+    </ol>
+  </section>
+
+  <footer>AgentAuthZ Analyst · Llama-3.2-3B, Unsloth, Ollama, LangFlow, Chroma · Agent events and the Acme organization are synthetic; logins come from the RBA dataset (Wiefling et al., CC BY 4.0).</footer>
+</div>

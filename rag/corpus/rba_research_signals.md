@@ -1,0 +1,9 @@
+# Risk-Based Authentication (RBA): research summary and dataset
+
+Sources: Wiefling, Jørgensen, Thunem & Lo Iacono, "Pump Up Password Security! Evaluating and Enhancing Risk-Based Authentication on a Real-World Large-Scale Online Service" (ACM TOPS 2022) and its public RBA login dataset (Kaggle `dasgroup/rba-dataset`, more than 33M login attempts from a large Norwegian online service, 2020); Wiefling et al., "Is This Really You? An Empirical Study on Risk-Based Authentication Applied in the Wild" (IFIP SEC 2019); Freeman et al., "Who Are You? A Statistical Approach to Measuring User Authenticity" (NDSS 2016).
+
+- **What RBA does.** After the password check, it scores the login against the user's history and either allows it, asks for an extra factor (step-up), or blocks it. It is in production at large online services and identity providers.
+- **Strongest signals in the studies.** IP address and ASN, country, and user agent (browser and OS, device type). Round-trip time can help detect proxies.
+- **About the data.** It covers 33M login attempts from 3.3M users, Feb 2020 to Feb 2021, CC BY 4.0 (zenodo.org/records/6782156). The authors synthesized the feature values (IPs, user agents, RTTs) so they keep the real statistical distributions without exposing any customer. They warn it is for research, not production.
+- **Dataset fields used in this project.** Timestamp, user ID, RTT, country, ASN, browser, OS, device type, login successful, is attack IP, is account takeover. User history (whether a country, ASN, or device was seen before, and failures in the last 24h) is replayed per user in time order.
+- **Label notes.** Account-takeover rows are rare. They are kept on purpose and labeled DENY. Attack-IP rows are labeled DENY (threat intel). A new country together with a new ASN is labeled STEP_UP.

@@ -1,0 +1,15 @@
+# large / regenerable artifacts
+data/raw/
+*.gguf
+deploy/*.gguf
+rag/.index.json
+rag/chroma*/
+outputs/
+__pycache__/
+.DS_Store
+.ipynb_checkpoints/
+
+# local-only notes, presentation copies and packaging (not part of the project)
+RUNBOOK.md
+submission/
+AgentAuthZ Architecture.html

@@ -1,0 +1,98 @@
+[
+ {
+  "id": "Q1",
+  "title": "Q1 human login: new country/ASN/browser at 03:00 after failures",
+  "prompt": "Assess this event and return the authorization decision as JSON.\n\nEVENT:\n{\"event_type\":\"human_login\",\"primary_credential\":\"valid\",\"hour_local\":3,\"country\":\"BR\",\"asn\":\"28573\",\"browser_os\":\"Chrome 79.0 | Windows 10\",\"device_type\":\"desktop\",\"rtt_ms\":742,\"ip_reputation\":\"no_known_threat\",\"history\":{\"prior_logins\":37,\"country_seen_before\":false,\"asn_seen_before\":false,\"browser_os_seen_before\":false,\"device_type_seen_before\":true,\"failed_attempts_24h\":4}}",
+  "expected": {
+   "checks": {
+    "ip_reputation": "no_known_threat",
+    "first_login": false,
+    "new_country": true,
+    "new_asn": true,
+    "new_browser_os": true,
+    "new_device_type": false,
+    "failed_attempts_24h": 4
+   },
+   "decision": "STEP_UP",
+   "risk": 80,
+   "reasons": [
+    "new country BR for this user",
+    "new network ASN 28573",
+    "new browser/OS combination",
+    "4 failed attempts in last 24h"
+   ],
+   "controls": [
+    "Risk-based authentication (IP/ASN/country/device novelty)",
+    "NIST SP 800-63B rate limiting of failed attempts"
+   ]
+  }
+ },
+ {
+  "id": "Q2",
+  "title": "Q2 agent: payment.release with no act claim and escalated scope",
+  "prompt": "Assess this event and return the authorization decision as JSON.\n\nEVENT:\n{\"event_type\":\"agent_tool_call\",\"user\":{\"id\":\"u-2210\",\"roles\":[\"finance_analyst\"],\"mfa_age_min\":30},\"agent\":{\"id\":\"invoice-bot-08\",\"registered\":true,\"state\":\"active\",\"owner\":\"u-2210\",\"type\":\"interactive\"},\"token\":{\"grant_type\":\"urn:ietf:params:oauth:grant-type:token-exchange\",\"sub\":\"u-2210\",\"act\":null,\"aud\":\"https://mcp.erp.example/\",\"scopes\":[\"orders:read\",\"payments:write\"],\"age_min\":5,\"jti_seen_before\":false},\"delegated_scopes\":[\"orders:read\",\"reports:read\"],\"tool_call\":{\"mcp_server\":\"erp-mcp\",\"tool\":\"payment.release\",\"target_resource\":\"https://mcp.erp.example/\",\"reversible\":false,\"data_sensitivity\":\"financial\",\"records\":1},\"human_approval\":\"none\",\"context\":{\"hour_local\":10,\"runtime_geo\":\"US\",\"usual_geo\":\"US\",\"delegation_depth\":1}}",
+  "expected": {
+   "checks": {
+    "agent_registered": true,
+    "agent_status": "active",
+    "act_claim": "missing",
+    "audience": "ok",
+    "scopes_within_delegation": false,
+    "user_entitled": false,
+    "token_replay": false,
+    "token_age_ok": true,
+    "chain_depth_ok": true,
+    "irreversible_unapproved": true,
+    "bulk_sensitive": false,
+    "geo": "usual",
+    "hour_ok": true,
+    "mfa_fresh": true
+   },
+   "decision": "DENY",
+   "risk": 99,
+   "reasons": [
+    "token has sub=user but no act claim: impersonation, not delegation",
+    "token scopes exceed user delegation: payments:write",
+    "user role 'finance_analyst' is not entitled to payment.release; an agent cannot exceed its user",
+    "payment.release is irreversible and human approval is 'none'"
+   ],
+   "controls": [
+    "RFC 8693 token exchange (act claim / delegation)",
+    "OWASP LLM06:2025 Excessive Agency",
+    "Least privilege: agent scopes <= delegated <= user entitlements",
+    "Human-in-the-loop: Verify & Act for irreversible actions"
+   ]
+  }
+ },
+ {
+  "id": "Q3",
+  "title": "Q3 agent: external email (irreversible) with approval pending",
+  "prompt": "Assess this event and return the authorization decision as JSON.\n\nEVENT:\n{\"event_type\":\"agent_tool_call\",\"user\":{\"id\":\"u-5531\",\"roles\":[\"warehouse_manager\"],\"mfa_age_min\":30},\"agent\":{\"id\":\"cust-support-03\",\"registered\":true,\"state\":\"active\",\"owner\":\"u-5531\",\"type\":\"interactive\"},\"token\":{\"grant_type\":\"urn:ietf:params:oauth:grant-type:token-exchange\",\"sub\":\"u-5531\",\"act\":{\"sub\":\"cust-support-03\"},\"aud\":\"https://mcp.mail.example/\",\"scopes\":[\"email:send\"],\"age_min\":5,\"jti_seen_before\":false},\"delegated_scopes\":[\"customers:read\",\"email:send\",\"orders:read\"],\"tool_call\":{\"mcp_server\":\"mail-mcp\",\"tool\":\"email.send_external\",\"target_resource\":\"https://mcp.mail.example/\",\"reversible\":false,\"data_sensitivity\":\"internal\",\"records\":1},\"human_approval\":\"pending\",\"context\":{\"hour_local\":10,\"runtime_geo\":\"US\",\"usual_geo\":\"US\",\"delegation_depth\":1}}",
+  "expected": {
+   "checks": {
+    "agent_registered": true,
+    "agent_status": "active",
+    "act_claim": "ok",
+    "audience": "ok",
+    "scopes_within_delegation": true,
+    "user_entitled": true,
+    "token_replay": false,
+    "token_age_ok": true,
+    "chain_depth_ok": true,
+    "irreversible_unapproved": true,
+    "bulk_sensitive": false,
+    "geo": "usual",
+    "hour_ok": true,
+    "mfa_fresh": true
+   },
+   "decision": "STEP_UP",
+   "risk": 45,
+   "reasons": [
+    "email.send_external is irreversible and human approval is 'pending'"
+   ],
+   "controls": [
+    "Human-in-the-loop: Verify & Act for irreversible actions"
+   ]
+  }
+ }
+]

@@ -1,0 +1,29 @@
+
+Held-out evaluation: 141 events never seen in training
++guard = deterministic floor from the model's own checks (escalate-only)
+
+model             accuracy  macro-F1  valid JSON             rba_login       synthetic_agent   synthetic_agent_rag  s/event
+---------------------------------------------------------------------------------------------------------------------------
+llama3.2:3b            33%      0.21         97%             16/45                 25/75                  5/21         10.9
+agentauthz-v1          55%      0.52         94%             33/45                 38/75                  7/21          4.6
+agentauthz             96%      0.96         98%             45/45                 70/75                 20/21          6.9
+agentauthz +guard      99%      0.99         98%                     -                     -                     -        -
+
+Three-tier comparison (FT = bare event; FT+Q = analyst question + event, no retrieval)
+Q    expected      base        FT      FT+Q    FT+RAG    +guard  sources cited (FT+RAG)
+----------------------------------------------------------------------------------------------------
+Q1    STEP_UP    ALLOW✗  STEP_UP✓         -  STEP_UP✓  STEP_UP✓  (none cited)
+    Q1 human login: new country/ASN/browser at 03:00 after failures
+Q2       DENY    ALLOW✗  STEP_UP✗         -     DENY✓     DENY✓  acme_agent_registry.md, rfc8693_token_exchange.md
+    Q2 agent: payment.release with no act claim and escalated scope
+Q3    STEP_UP    ALLOW✗  STEP_UP✓         -  STEP_UP✓  STEP_UP✓  acme_agent_authorization_policy.md
+    Q3 agent: external email (irreversible) with approval pending
+R1       DENY    ALLOW✗    ALLOW✗    ALLOW✗     DENY✓     DENY✓  acme_agent_registry.md
+    Is invoice-bot-07 allowed to read orders? (agent was revoked after an incident)
+R2    STEP_UP    ALLOW✗    ALLOW✗  STEP_UP✓  STEP_UP✓  STEP_UP✓  acme_agent_authorization_policy.md
+    cust-support-03 looks up 80 customer PII records
+R3      ALLOW    ALLOW✓  STEP_UP✗    ALLOW✓    ALLOW✓    ALLOW✓  acme_agent_authorization_policy.md
+    ship-planner-05 runs from Germany instead of its usual US region
+
+Hallucinated policy without retrieval:
+  - R2 FT+Q (no retrieval) claimed: '80 customer PII records exceeds the 10-record bulk data policy', citing no source
